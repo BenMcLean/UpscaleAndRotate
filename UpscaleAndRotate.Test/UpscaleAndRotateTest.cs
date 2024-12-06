@@ -5,8 +5,8 @@ namespace UpscaleAndRotate.Test;
 public class UpscaleAndRotateTest
 {
 	[Theory]
-	[InlineData(160, 319, 1, 1, 64, "rotated.gif")]
-	public void RotateTest(ushort width, ushort height, byte scaleX, byte scaleY, ushort numFrames, string path)
+	[InlineData(160, 319, 1, 1, 64, 10, "rotated.gif")]
+	public void RotateTest(ushort width, ushort height, byte scaleX, byte scaleY, ushort numFrames, int frameDelay, string path)
 	{
 		byte[] texture = new byte[width * height << 2].DrawBoundingBox(width);
 		byte[][] frames = ImageMaker.SameSize(
@@ -23,7 +23,7 @@ public class UpscaleAndRotateTest
 			height: out _);
 		ImageMaker.AnimatedGif(
 			width: newWidth,
-			frameDelay: 10,
+			frameDelay: frameDelay,
 			frames: frames)
 			.SaveAsGif(path);
 	}

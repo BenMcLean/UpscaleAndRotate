@@ -121,4 +121,51 @@ public static class UpscaleAndRotate
 		return texture;
 	}
 	#endregion Utilities
+	#region Related methods for context
+	public static (ushort, ushort) RotatedSize(ushort width, ushort height, double radians = 0d, byte scaleX = 1, byte scaleY = 1)
+	{
+		if (scaleX < 1) throw new ArgumentOutOfRangeException(nameof(scaleX));
+		if (scaleY < 1) throw new ArgumentOutOfRangeException(nameof(scaleY));
+		if (width > ushort.MaxValue / scaleX)
+			throw new OverflowException("Scaled width exceeds maximum allowed size.");
+		if (height > ushort.MaxValue / scaleY)
+			throw new OverflowException("Scaled height exceeds maximum allowed size.");
+		ushort scaledWidth = (ushort)(width * scaleX),
+			scaledHeight = (ushort)(height * scaleY);
+		radians %= Tau;
+		double absCos = Math.Abs(Math.Cos(radians)),
+			absSin = Math.Abs(Math.Sin(radians));
+		uint rotatedWidth = (uint)(scaledWidth * absCos + scaledHeight * absSin),
+			rotatedHeight = (uint)(scaledWidth * absSin + scaledHeight * absCos);
+		if (rotatedWidth > ushort.MaxValue)
+			throw new OverflowException("Rotated width exceeds maximum allowed size.");
+		if (rotatedHeight > ushort.MaxValue)
+			throw new OverflowException("Rotated height exceeds maximum allowed size.");
+		return ((ushort)rotatedWidth, (ushort)rotatedHeight);
+	}
+	public static (int, int) RotatedLocate(ushort width, ushort height, int x, int y, double radians = 0d, byte scaleX = 1, byte scaleY = 1)
+	{
+		if (scaleX < 1) throw new ArgumentOutOfRangeException(nameof(scaleX));
+		if (scaleY < 1) throw new ArgumentOutOfRangeException(nameof(scaleY));
+		if (width > ushort.MaxValue / scaleX)
+			throw new OverflowException("Scaled width exceeds maximum allowed size.");
+		if (height > ushort.MaxValue / scaleY)
+			throw new OverflowException("Scaled height exceeds maximum allowed size.");
+		radians %= Tau;
+		double cos = Math.Cos(radians),
+			sin = Math.Sin(radians),
+			absCos = Math.Abs(cos),
+			absSin = Math.Abs(sin);
+		ushort scaledWidth = (ushort)(width * scaleX),
+			scaledHeight = (ushort)(height * scaleY),
+			rotatedWidth = (ushort)(scaledWidth * absCos + scaledHeight * absSin),
+			rotatedHeight = (ushort)(scaledWidth * absSin + scaledHeight * absCos),
+			halfRotatedWidth = (ushort)(rotatedWidth >> 1),
+			halfRotatedHeight = (ushort)(rotatedHeight >> 1);
+		double offsetX = (scaledWidth >> 1) - cos * halfRotatedWidth - sin * halfRotatedHeight,
+			offsetY = (scaledHeight >> 1) - cos * halfRotatedHeight + sin * halfRotatedWidth;
+		return ((int)(cos * (x * scaleX - offsetX) - sin * (y * scaleY - offsetY)),
+			(int)(sin * (x * scaleX - offsetX) + cos * (y * scaleY - offsetY)));
+	}
+	#endregion Related methods for context
 }

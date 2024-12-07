@@ -37,12 +37,6 @@ public static class UpscaleAndRotate
 			halfRotatedHeight = (ushort)(rotatedHeight >> 1);
 		double offsetX = (scaledWidth >> 1) - cos * halfRotatedWidth - sin * halfRotatedHeight,
 			offsetY = (scaledHeight >> 1) - cos * halfRotatedHeight + sin * halfRotatedWidth;
-		//double[][] corners = [
-		//	[-halfRotatedWidth + offsetX, -halfRotatedHeight + offsetY],//top-left
-		//	[halfRotatedWidth + offsetX, -halfRotatedHeight + offsetY],//top-right
-		//	[halfRotatedWidth + offsetX, halfRotatedHeight + offsetY],//bottom-right
-		//	[-halfRotatedWidth + offsetX, halfRotatedHeight + offsetY],//bottom-left
-		//];
 		byte[] rotated = new byte[rotatedWidth * rotatedHeight << 2];
 		bool isNearZero = absCos < 1e-10 || absSin < 1e-10;
 		for (ushort y = 0; y < rotatedHeight; y++)
@@ -50,9 +44,62 @@ public static class UpscaleAndRotate
 			ushort startX = 0, endX = (ushort)(rotatedWidth - 1);
 			if (!isNearZero)
 			{
-				//TODO calculate startX and endX to avoid iterating outsize the bounding box
+				// Calculate the four corners in source image coordinates (pre-rotation)
+				double[] cornersX =
+				{
+					0,// Top-left
+					width * scaleX,// Top-right
+					width * scaleX,// Bottom-right
+					0// Bottom-left
+				};
+				double[] cornersY =
+				{
+					0,// Top-left
+					0,// Top-right
+					height * scaleY,// Bottom-right
+					height * scaleY// Bottom-left
+				};
+				// Rotate each corner to get their positions in the output image
+				double minX = double.MaxValue, maxX = double.MinValue;
+				for (int i = 0; i < 4; i++)
+				{
+					// Center the corner relative to source image center
+					double centeredX = cornersX[i] - (scaledWidth >> 1);
+					double centeredY = cornersY[i] - (scaledHeight >> 1);
+					// Rotate the corner
+					double rotatedX = centeredX * cos - centeredY * sin + (rotatedWidth >> 1);
+					double rotatedY = centeredX * sin + centeredY * cos + (rotatedHeight >> 1);
+					// If this corner is on this scanline (within rounding), include its X coordinate
+					if (Math.Abs(rotatedY - y) <= 0.5)
+					{
+						minX = Math.Min(minX, rotatedX);
+						maxX = Math.Max(maxX, rotatedX);
+					}
+					// For the edge from this corner to the next corner
+					int nextI = (i + 1) % 4;
+					double nextCenteredX = cornersX[nextI] - (scaledWidth >> 1),
+						nextCenteredY = cornersY[nextI] - (scaledHeight >> 1),
+						nextRotatedX = nextCenteredX * cos - nextCenteredY * sin + (rotatedWidth >> 1),
+						nextRotatedY = nextCenteredX * sin + nextCenteredY * cos + (rotatedHeight >> 1);
+					// If the edge crosses this scanline
+					if ((rotatedY <= y && nextRotatedY >= y) || (rotatedY >= y && nextRotatedY <= y))
+					{
+						// Calculate intersection X using linear interpolation
+						double t = (y - rotatedY) / (nextRotatedY - rotatedY),
+							intersectX = rotatedX + t * (nextRotatedX - rotatedX);
+						minX = Math.Min(minX, intersectX);
+						maxX = Math.Max(maxX, intersectX);
+					}
+				}
+				// If we found valid intersection points
+				if (minX != double.MaxValue && maxX != double.MinValue)
+				{
+					// Clamp to texture bounds and convert to integers
+					startX = (ushort)Math.Max(0, Math.Floor(minX));
+					endX = (ushort)Math.Min(rotatedWidth - 1, Math.Ceiling(maxX));
+				}
 			}
-			for (ushort x = startX; x < endX; x++)
+			for (ushort x = startX; x <= endX; x++)
 			{
 				double sourceX = (x * cos + y * sin + offsetX) / scaleX,
 					sourceY = (y * cos - x * sin + offsetY) / scaleY;

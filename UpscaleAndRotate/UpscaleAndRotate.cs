@@ -77,8 +77,9 @@ public static class UpscaleAndRotate
 					{//If the edge crosses this scanline
 						if (Math.Abs(nextY - currentY) > 1e-10)
 						{//Only calculate intersection if denominator isn't zero
-							double t = (y - currentY) / (nextY - currentY);
-							double intersectX = cornerX[cornerIndex] + t * (cornerX[nextCornerIndex] - cornerX[cornerIndex]);
+							double intersectX = cornerX[cornerIndex]
+								+ (y - currentY) / (nextY - currentY)
+								* (cornerX[nextCornerIndex] - cornerX[cornerIndex]);
 							minX = minX.HasValue ? Math.Min(minX.Value, intersectX) : intersectX;
 							maxX = maxX.HasValue ? Math.Max(maxX.Value, intersectX) : intersectX;
 						}

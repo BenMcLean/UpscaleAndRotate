@@ -27,8 +27,10 @@ public static class UpscaleAndRotate
 			absSin = Math.Abs(sin);
 		uint rWidth = (uint)(scaledWidth * absCos + scaledHeight * absSin),
 			rHeight = (uint)(scaledWidth * absSin + scaledHeight * absCos);
-		if (rWidth > ushort.MaxValue || rHeight > ushort.MaxValue)
-			throw new OverflowException("Rotated dimensions exceed maximum allowed size.");
+		if (rWidth > ushort.MaxValue)
+			throw new OverflowException("Rotated width exceeds maximum allowed size.");
+		if (rHeight > ushort.MaxValue)
+			throw new OverflowException("Rotated height exceeds maximum allowed size.");
 		if (rWidth * rHeight > int.MaxValue >> 2)
 			throw new OverflowException("Resulting image would be too large to allocate");
 		rotatedWidth = (ushort)rWidth;
@@ -99,7 +101,6 @@ public static class UpscaleAndRotate
 							width: width),
 						width: rotatedWidth);
 			}
-
 #if DEBUG
 			rotated.DrawPixel(
 				x: startX,

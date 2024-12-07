@@ -7,6 +7,12 @@ public class UpscaleAndRotateTest
 	[Theory]
 	[InlineData(160, 319, 64, "rotated.gif")]
 	[InlineData(160, 319, 64, "rotated-no-box.gif", false)]
+	[InlineData(256, 64, 64, "really-wide.gif")]
+	[InlineData(256, 64, 64, "really-wide-no-box.gif", false)]
+	[InlineData(63, 255, 64, "really-tall.gif")]
+	[InlineData(63, 255, 64, "really-tall-no-box.gif", false)]
+	[InlineData(63, 63, 64, "square.gif")]
+	[InlineData(63, 63, 64, "square-no-box.gif", false)]
 	public void GifTest(ushort width, ushort height, ushort numFrames, string path, bool drawBox = true, byte scaleX = 1, byte scaleY = 1, int frameDelay = 10)
 	{
 		byte[][] frames = ImageMaker.SameSize(

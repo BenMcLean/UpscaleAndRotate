@@ -33,10 +33,12 @@ public static class UpscaleAndRotate
 			throw new OverflowException("Resulting image would be too large to allocate");
 		rotatedWidth = (ushort)rWidth;
 		rotatedHeight = (ushort)rHeight;
-		ushort halfRotatedWidth = (ushort)(rotatedWidth >> 1),
+		ushort halfScaledWidth = (ushort)(scaledWidth >> 1),
+			halfScaledHeight = (ushort)(scaledHeight >> 1),
+			halfRotatedWidth = (ushort)(rotatedWidth >> 1),
 			halfRotatedHeight = (ushort)(rotatedHeight >> 1);
-		double offsetX = (scaledWidth >> 1) - cos * halfRotatedWidth - sin * halfRotatedHeight,
-			offsetY = (scaledHeight >> 1) - cos * halfRotatedHeight + sin * halfRotatedWidth;
+		double offsetX = halfScaledWidth - cos * halfRotatedWidth - sin * halfRotatedHeight,
+			offsetY = halfScaledHeight - cos * halfRotatedHeight + sin * halfRotatedWidth;
 		byte[] rotated = new byte[rotatedWidth * rotatedHeight << 2];
 		bool isNearZero = absCos < 1e-10 || absSin < 1e-10;
 		for (ushort y = 0; y < rotatedHeight; y++)
@@ -44,31 +46,32 @@ public static class UpscaleAndRotate
 			ushort startX = 0, endX = (ushort)(rotatedWidth - 1);
 			if (!isNearZero)
 			{
+				#region Needs optimization
 				// Calculate the four corners in source image coordinates (pre-rotation)
 				double[] cornersX =
-				{
-					0,// Top-left
-					width * scaleX,// Top-right
-					width * scaleX,// Bottom-right
-					0// Bottom-left
-				};
-				double[] cornersY =
-				{
-					0,// Top-left
-					0,// Top-right
-					height * scaleY,// Bottom-right
-					height * scaleY// Bottom-left
-				};
+				[
+					0d,// Top-left
+					scaledWidth,// Top-right
+					scaledWidth,// Bottom-right
+					0d,// Bottom-left
+				],
+					cornersY =
+				[
+					0d,// Top-left
+					0d,// Top-right
+					scaledHeight,// Bottom-right
+					scaledHeight,// Bottom-left
+				];
 				// Rotate each corner to get their positions in the output image
 				double minX = double.MaxValue, maxX = double.MinValue;
 				for (int i = 0; i < 4; i++)
 				{
 					// Center the corner relative to source image center
-					double centeredX = cornersX[i] - (scaledWidth >> 1);
-					double centeredY = cornersY[i] - (scaledHeight >> 1);
-					// Rotate the corner
-					double rotatedX = centeredX * cos - centeredY * sin + (rotatedWidth >> 1);
-					double rotatedY = centeredX * sin + centeredY * cos + (rotatedHeight >> 1);
+					double centeredX = cornersX[i] - halfScaledWidth,
+						centeredY = cornersY[i] - halfScaledHeight,
+						// Rotate the corner
+						rotatedX = centeredX * cos - centeredY * sin + (rotatedWidth >> 1),
+						rotatedY = centeredX * sin + centeredY * cos + (rotatedHeight >> 1);
 					// If this corner is on this scanline (within rounding), include its X coordinate
 					if (Math.Abs(rotatedY - y) <= 0.5)
 					{
@@ -77,10 +80,10 @@ public static class UpscaleAndRotate
 					}
 					// For the edge from this corner to the next corner
 					int nextI = (i + 1) % 4;
-					double nextCenteredX = cornersX[nextI] - (scaledWidth >> 1),
-						nextCenteredY = cornersY[nextI] - (scaledHeight >> 1),
-						nextRotatedX = nextCenteredX * cos - nextCenteredY * sin + (rotatedWidth >> 1),
-						nextRotatedY = nextCenteredX * sin + nextCenteredY * cos + (rotatedHeight >> 1);
+					double nextCenteredX = cornersX[nextI] - halfScaledWidth,
+						nextCenteredY = cornersY[nextI] - halfScaledHeight,
+						nextRotatedX = nextCenteredX * cos - nextCenteredY * sin + halfRotatedWidth,
+						nextRotatedY = nextCenteredX * sin + nextCenteredY * cos + halfRotatedHeight;
 					// If the edge crosses this scanline
 					if ((rotatedY <= y && nextRotatedY >= y) || (rotatedY >= y && nextRotatedY <= y))
 					{
@@ -98,6 +101,7 @@ public static class UpscaleAndRotate
 					startX = (ushort)Math.Max(0, Math.Floor(minX));
 					endX = (ushort)Math.Min(rotatedWidth - 1, Math.Ceiling(maxX));
 				}
+				#endregion Needs optimization
 			}
 			for (ushort x = startX; x <= endX; x++)
 			{
